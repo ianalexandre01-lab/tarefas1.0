@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checklist de Compras Mensais</title>
+    <!-- Biblioteca para exportar para Excel -->
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <!-- Biblioteca para exportar para PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background-color: #27ae60;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #219653;
+            transform: translateY(-2px);
+        }
+        
+        .btn-warning {
+            background-color: #f39c12;
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            background-color: #d68910;
+            transform: translateY(-2px);
+        }
+        
+        .btn-danger {
+            background-color: #e74c3c;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c0392b;
+            transform: translateY(-2px);
+        }
+        
+        .total-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .total-display {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+        
+        .total-value {
+            color: #27ae60;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 25px;
+        }
+        
+        .category {
+            background-color: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease;
+        }
+        
+        .category:hover {
+            transform: translateY(-5px);
+        }
+        
+        .category-header {
+            background: linear-gradient(135deg, #3498db, #2c3e50);
+            color: white;
+            padding: 18px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .category-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .toggle-icon {
+            transition: transform 0.3s ease;
+            font-size: 0.9rem;
+        }
+        
+        .category-total {
+            font-weight: 600;
+            font-size: 1.1rem;
+            background-color: rgba(255, 255, 255, 0.2);
+            padding: 5px 12px;
+            border-radius: 20px;
+        }
+        
+        .items-list {
+            padding: 20px;
+            overflow-y: auto;
+            transition: all 0.3s ease;
+        }
+        
+        .category.minimized .items-list {
+            display: none;
+        }
+        
+        .item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .item:last-child {
+            border-bottom: none;
+        }
+        
+        .item-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+        
+        .item-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .item-name {
+            font-size: 1rem;
+        }
+        
+        .item-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            width: 100%;
+        }
+        
+        .item-name-input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.95rem;
+        }
+        
+        .item-name-input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        
+        .item-price-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 5px;
+        }
+        
+        .quantity-input, .price-input, .unit-input {
+            width: 90px;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            text-align: right;
+        }
+        
+        .unit-input {
+            text-align: left;
+        }
+        
+        .quantity-input:focus, .price-input:focus, .unit-input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        
+        .unit-price-label {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            min-width: 70px;
+        }
+        
+        .item-value {
+            font-weight: 600;
+            min-width: 80px;
+            text-align: right;
+            font-size: 0.95rem;
+        }
+        
+        .item-subtotal {
+            font-size: 0.85rem;
+            color: #27ae60;
+            margin-top: 2px;
+        }
+        
+        .add-item-form {
+            background-color: #f8f9fa;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 6px;
+            border: 1px dashed #3498db;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .form-input {
+            flex: 1;
+            min-width: 120px;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-add {
+            background-color: #27ae60;
+            color: white;
+        }
+        
+        .btn-add:hover {
+            background-color: #219653;
+        }
+        
+        .btn-cancel {
+            background-color: #95a5a6;
+            color: white;
+        }
+        
+        .btn-cancel:hover {
+            background-color: #7f8c8d;
+        }
+        
+        .btn-remove {
+            background-color: #e74c3c;
+            color: white;
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            border-radius: 3px;
+            border: none;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        
+        .btn-remove:hover {
+            background-color: #c0392b;
+        }
+        
+        .btn-add-item {
+            width: 100%;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border: 2px dashed #3498db;
+            border-radius: 6px;
+            color: #3498db;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.3s;
+        }
+        
+        .btn-add-item:hover {
+            background-color: #e3f2fd;
+            border-color: #2980b9;
+            color: #2980b9;
+        }
+        
+        .notes-section {
+            background-color: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-top: 30px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        
+        .notes-title {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        
+        .notes-textarea {
+            width: 100%;
+            height: 120px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            resize: vertical;
+        }
+        
+        .notes-textarea:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        .modal-title {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+        }
+        
+        .category-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 10px 0;
+            border-bottom: 2px solid #eee;
+        }
+        
+        .category-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-category {
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-category:hover {
+            background-color: #2980b9;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .item-price-controls {
+                flex-wrap: wrap;
+            }
+            
+            .quantity-input, .price-input, .unit-input {
+                width: 80px;
+            }
+            
+            .category-controls {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+            
+            .category-buttons {
+                width: 100%;
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+            
+            .form-row {
+                flex-direction: column;
+            }
+            
+            .form-input {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>📋 Checklist de Compras Mensais</h1>
+        <p class="subtitle">Para homem de 32 anos - Organize suas compras de carne, alimentos, higiene e limpeza</p>
+    </header>
+
+    <div class="controls">
+        <button class="btn btn-primary" onclick="calculateTotals()">
+            <span>🔄</span> Calcular Totais
+        </button>
+        <button class="btn btn-success" onclick="exportToExcel()">
+            <span>📊</span> Exportar para Excel
+        </button>
+        <button class="btn btn-warning" onclick="exportToPDF()">
+            <span>📄</span> Exportar para PDF
+        </button>
+        <button class="btn btn-danger" onclick="clearAll()">
+            <span>🗑️</span> Limpar Tudo
+        </button>
+        <button class="btn btn-primary" onclick="saveChecklist()">
+            <span>💾</span> Salvar Checklist
+        </button>
+    </div>
+
+    <div class="total-container">
+        <div>
+            <h2>Total Geral Estimado</h2>
+            <p>Valor total de todas as categorias (inclui apenas itens marcados)</p>
+        </div>
+        <div class="total-display">
+            R$ <span id="totalValue" class="total-value">0,00</span>
+        </div>
+    </div>
+
+    <div class="category-controls">
+        <h3>Controles das Categorias</h3>
+        <div class="category-buttons">
+            <button class="btn-category" onclick="expandAllCategories()">⬇️ Expandir Todas</button>
+            <button class="btn-category" onclick="collapseAllCategories()">⬆️ Minimizar Todas</button>
+            <button class="btn-category" onclick="toggleAllCategories()">🔄 Alternar Todas</button>
+        </div>
+    </div>
+
+    <div class="container" id="checklistContainer">
+        <!-- Categorias serão inseridas aqui via JavaScript -->
+    </div>
+
+    <div class="notes-section">
+        <h3 class="notes-title">📝 Observações e Notas</h3>
+        <textarea class="notes-textarea" id="notes" placeholder="Adicione observações sobre suas compras, promoções encontradas, lembretes importantes..."></textarea>
+    </div>
+
+    <div class="footer">
+        <p>Checklist desenvolvido para planejamento mensal de compras | Atualize os valores conforme necessário</p>
+    </div>
+
+    <!-- Modal para limpar tudo -->
+    <div id="clearModal" class="modal">
+        <div class="modal-content">
+            <h3 class="modal-title">⚠️ Limpar Checklist</h3>
+            <p>Tem certeza que deseja limpar todos os dados do checklist? Esta ação não pode ser desfeita.</p>
+            <div class="modal-buttons">
+                <button class="btn btn-danger" onclick="confirmClear()">Sim, Limpar Tudo</button>
+                <button class="btn btn-primary" onclick="closeModal()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Dados do checklist
+        const checklistData = {
+            categories: [
+                {
+                    id: 'carnes',
+                    title: '🥩 Carnes (Mensal)',
+                    minimized: false,
+                    items: [
+                        { id: 'carne1', name: 'Peito de Frango', quantity: 2, unit: 'kg', price: 0, checked: false },
+                        { id: 'carne2', name: 'Coxa/Sobrecoxa de Frango', quantity: 1, unit: 'kg', price: 0, checked: false },
+                        { id: 'carne3', name: 'Carne para Cozinhar (músculo, acém)', quantity: 1.5, unit: 'kg', price: 0, checked: false },
+                        { id: 'carne4', name: 'Carne para Grelhar (patinho, fraldinha)', quantity: 1, unit: 'kg', price: 0, checked: false },
+                        { id: 'carne5', name: 'Carne Moída', quantity: 0.5, unit: 'kg', price: 0, checked: false },
+                        { id: 'carne6', name: 'Peixe (filé ou sardinha em lata)', quantity: 1, unit: 'kg ou 4 latas', price: 0, checked: false }
+                    ]
+                },
+                {
+                    id: 'sexta-basica',
+                    title: '🛒 Sexta Básica',
+                    minimized: false,
+                    items: [
+                        { id: 'sb1', name: 'Arroz', quantity: 5, unit: 'kg', price: 0, checked: false },
+                        { id: 'sb2', name: 'Feijão', quantity: 2, unit: 'kg', price: 0, checked: false },
+                        { id: 'sb3', name: 'Macarrão', quantity: 1, unit: 'kg', price: 0, checked: false },
+                        { id: 'sb4', name: 'Farinha de Trigo', quantity: 1, unit: 'kg', price: 0, checked: false },
+                        { id: 'sb5', name: 'Açúcar', quantity: 1, unit: 'kg', price: 0, checked: false },
+                        { id: 'sb6', name: 'Óleo de Soja/Girassol', quantity: 1, unit: '900ml', price: 0, checked: false },
+                        { id: 'sb7', name: 'Café em Pó', quantity: 1, unit: '500g', price: 0, checked: false },
+                        { id: 'sb8', name: 'Molho de Tomate', quantity: 2, unit: 'latas', price: 0, checked: false },
+                        { id: 'sb9', name: 'Milho/Ervilha em Lata', quantity: 2, unit: 'latas', price: 0, checked: false }
+                    ]
+                },
+                {
+                    id: 'higiene',
+                    title: '🧴 Higiene Pessoal',
+                    minimized: false,
+                    items: [
+                        { id: 'hig1', name: 'Sabonete', quantity: 5, unit: 'unidades', price: 0, checked: false },
+                        { id: 'hig2', name: 'Shampoo', quantity: 1, unit: 'frasco 350-500ml', price: 0, checked: false },
+                        { id: 'hig3', name: 'Condicionador', quantity: 1, unit: 'frasco', price: 0, checked: false },
+                        { id: 'hig4', name: 'Pasta de Dente', quantity: 2, unit: 'tubos', price: 0, checked: false },
+                        { id: 'hig5', name: 'Escova de Dentes', quantity: 1, unit: 'unidade', price: 0, checked: false },
+                        { id: 'hig6', name: 'Desodorante', quantity: 1, unit: 'unidade', price: 0, checked: false },
+                        { id: 'hig7', name: 'Papel Higiênico', quantity: 4, unit: 'rolos', price: 0, checked: false },
+                        { id: 'hig8', name: 'Lâminas de Barbear', quantity: 1, unit: 'pacote', price: 0, checked: false }
+                    ]
+                },
+                {
+                    id: 'limpeza',
+                    title: '🧽 Limpeza Doméstica',
+                    minimized: false,
+                    items: [
+                        { id: 'limp1', name: 'Detergente Líquido (roupas)', quantity: 1, unit: 'frasco 1,5L ou 2kg', price: 0, checked: false },
+                        { id: 'limp2', name: 'Amaciante', quantity: 1, unit: 'frasco 1L', price: 0, checked: false },
+                        { id: 'limp3', name: 'Detergente (louça)', quantity: 1, unit: 'frasco 500ml', price: 0, checked: false },
+                        { id: 'limp4', name: 'Água Sanitária', quantity: 1, unit: '1-2L', price: 0, checked: false },
+                        { id: 'limp5', name: 'Desinfetante', quantity: 1, unit: '500ml', price: 0, checked: false },
+                        { id: 'limp6', name: 'Multiuso (limpa-vidros)', quantity: 1, unit: '500ml', price: 0, checked: false },
+                        { id: 'limp7', name: 'Sacos de Lixo', quantity: 2, unit: 'rolos', price: 0, checked: false },
+                        { id: 'limp8', name: 'Esponjas (aço e pia)', quantity: 1, unit: 'pacote', price: 0, checked: false }
+                    ]
+                },
+                {
+                    id: 'flv',
+                    title: '🥦 FLV (Frutas, Legumes, Verduras)',
+                    minimized: false,
+                    items: [
+                        { id: 'flv1', name: 'Alho e Cebola', quantity: 1, unit: 'kg', price: 0, checked: false },
+                        { id: 'flv2', name: 'Tomate', quantity: 1.5, unit: 'kg', price: 0, checked: false },
+                        { id: 'flv3', name: 'Batata/Cenoura', quantity: 1.5, unit: 'kg', price: 0, checked: false },
+                        { id: 'flv4', name: 'Folhas (alface, rúcula)', quantity: 1, unit: 'por semana', price: 0, checked: false },
+                        { id: 'flv5', name: 'Frutas (banana, maçã, laranja)', quantity: 1, unit: 'variedade semanal', price: 0, checked: false },
+                        { id: 'flv6', name: 'Pimentão/Abobrinha', quantity: 1, unit: 'para refogar', price: 0, checked: false }
+                    ]
+                },
+                {
+                    id: 'laticinios',
+                    title: '🥛 Laticínios e Outros',
+                    minimized: false,
+                    items: [
+                        { id: 'lat1', name: 'Leite UHT', quantity: 7, unit: 'caixas', price: 0, checked: false },
+                        { id: 'lat2', name: 'Ovos', quantity: 30, unit: 'unidades', price: 0, checked: false },
+                        { id: 'lat3', name: 'Queijo', quantity: 0.5, unit: 'kg', price: 0, checked: false },
+                        { id: 'lat4', name: 'Manteiga/Margarina', quantity: 0.25, unit: 'kg', price: 0, checked: false },
+                        { id: 'lat5', name: 'Pão (comprar semanal)', quantity: 1, unit: 'semanal', price: 0, checked: false },
+                        { id: 'lat6', name: 'Temperos (sal, pimenta, etc)', quantity: 1, unit: 'reposição', price: 0, checked: false }
+                    ]
+                }
+            ]
+        };
+
+        // Gerar ID único para novos itens
+        function generateId() {
+            return 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        // Carregar dados salvos do localStorage
+        function loadSavedData() {
+            const saved = localStorage.getItem('shoppingChecklist');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                parsed.categories.forEach((cat, catIndex) => {
+                    if (checklistData.categories[catIndex]) {
+                        checklistData.categories[catIndex].minimized = cat.minimized || false;
+                        // Substituir todos os itens pelos salvos
+                        checklistData.categories[catIndex].items = cat.items || [];
+                    }
+                });
+                
+                const savedNotes = localStorage.getItem('shoppingChecklistNotes');
+                if (savedNotes) {
+                    document.getElementById('notes').value = savedNotes;
+                }
+            }
+        }
+
+        // Salvar dados no localStorage
+        function saveChecklist() {
+            localStorage.setItem('shoppingChecklist', JSON.stringify(checklistData));
+            localStorage.setItem('shoppingChecklistNotes', document.getElementById('notes').value);
+            
+            // Feedback visual
+            const btn = event?.target?.closest('.btn');
+            if (btn) {
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<span>✅</span> Checklist Salvo!';
+                btn.style.backgroundColor = '#27ae60';
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.style.backgroundColor = '';
+                }, 2000);
+            }
+        }
+
+        // Alternar categoria (minimizar/expandir)
+        function toggleCategory(categoryId) {
+            const category = checklistData.categories.find(c => c.id === categoryId);
+            if (category) {
+                category.minimized = !category.minimized;
+                saveChecklist();
+                renderChecklist();
+            }
+        }
+
+        // Expandir todas as categorias
+        function expandAllCategories() {
+            checklistData.categories.forEach(category => {
+                category.minimized = false;
+            });
+            saveChecklist();
+            renderChecklist();
+        }
+
+        // Minimizar todas as categorias
+        function collapseAllCategories() {
+            checklistData.categories.forEach(category => {
+                category.minimized = true;
+            });
+            saveChecklist();
+            renderChecklist();
+        }
+
+        // Alternar todas as categorias
+        function toggleAllCategories() {
+            const allMinimized = checklistData.categories.every(category => category.minimized);
+            checklistData.categories.forEach(category => {
+                category.minimized = !allMinimized;
+            });
+            saveChecklist();
+            renderChecklist();
+        }
+
+        // Calcular subtotal do item
+        function calculateItemSubtotal(quantity, price) {
+            return (parseFloat(quantity) || 1) * (parseFloat(price) || 0);
+        }
+
+        // Adicionar novo item
+        function addNewItem(categoryId, name, quantity, unit, price) {
+            const category = checklistData.categories.find(c => c.id === categoryId);
+            if (category) {
+                const newItem = {
+                    id: generateId(),
+                    name: name || 'Novo Item',
+                    quantity: parseFloat(quantity) || 1,
+                    unit: unit || 'unidade',
+                    price: parseFloat(price) || 0,
+                    checked: false
+                };
+                category.items.push(newItem);
+                saveChecklist();
+                renderChecklist();
+            }
+        }
+
+        // Remover item
+        function removeItem(categoryId, itemId) {
+            const category = checklistData.categories.find(c => c.id === categoryId);
+            if (category) {
+                const itemIndex = category.items.findIndex(item => item.id === itemId);
+                if (itemIndex > -1) {
+                    category.items.splice(itemIndex, 1);
+                    saveChecklist();
+                    renderChecklist();
+                }
+            }
+        }
+
+        // Mostrar formulário para adicionar item
+        function showAddItemForm(categoryId) {
+            const category = checklistData.categories.find(c => c.id === categoryId);
+            if (category) {
+                // Encontrar ou criar o formulário
+                let form = document.getElementById(`add-item-form-${categoryId}`);
+                if (!form) {
+                    // Criar formulário
+                    const itemsList = document.querySelector(`#category-${categoryId} .items-list`);
+                    form = document.createElement('div');
+                    form.id = `add-item-form-${categoryId}`;
+                    form.className = 'add-item-form';
+                    form.innerHTML = `
+                        <div class="form-row">
+                            <input type="text" class="form-input" id="new-item-name-${categoryId}" placeholder="Nome do item" value="">
+                        </div>
+                        <div class="form-row">
+                            <input type="number" class="form-input" id="new-item-quantity-${categoryId}" placeholder="Quantidade" value="1" step="0.1" min="0.1">
+                            <input type="text" class="form-input" id="new-item-unit-${categoryId}" placeholder="Unidade (kg, un, etc)" value="unidade">
+                            <input type="number" class="form-input" id="new-item-price-${categoryId}" placeholder="Preço" value="0" step="0.01" min="0">
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-small btn-cancel" onclick="hideAddItemForm('${categoryId}')">Cancelar</button>
+                            <button type="button" class="btn-small btn-add" onclick="submitNewItem('${categoryId}')">Adicionar Item</button>
+                        </div>
+                    `;
+                    itemsList.appendChild(form);
+                }
+                form.style.display = 'block';
+                
+                // Focar no primeiro campo
+                setTimeout(() => {
+                    document.getElementById(`new-item-name-${categoryId}`).focus();
+                }, 100);
+            }
+        }
+
+        // Esconder formulário para adicionar item
+        function hideAddItemForm(categoryId) {
+            const form = document.getElementById(`add-item-form-${categoryId}`);
+            if (form) {
+                form.style.display = 'none';
+            }
+        }
+
+        // Submeter novo item
+        function submitNewItem(categoryId) {
+            const nameInput = document.getElementById(`new-item-name-${categoryId}`);
+            const quantityInput = document.getElementById(`new-item-quantity-${categoryId}`);
+            const unitInput = document.getElementById(`new-item-unit-${categoryId}`);
+            const priceInput = document.getElementById(`new-item-price-${categoryId}`);
+            
+            if (nameInput && nameInput.value.trim()) {
+                addNewItem(
+                    categoryId,
+                    nameInput.value.trim(),
+                    quantityInput.value,
+                    unitInput.value,
+                    priceInput.value
+                );
+                
+                // Limpar formulário
+                nameInput.value = '';
+                quantityInput.value = '1';
+                unitInput.value = 'unidade';
+                priceInput.value = '0';
+                
+                hideAddItemForm(categoryId);
+            } else {
+                alert('Por favor, informe o nome do item.');
+                nameInput.focus();
+            }
+        }
+
+        // Renderizar o checklist
+        function renderChecklist() {
+            const container = document.getElementById('checklistContainer');
+            container.innerHTML = '';
+            
+            checklistData.categories.forEach(category => {
+                const categoryElement = document.createElement('div');
+                categoryElement.className = `category ${category.minimized ? 'minimized' : ''}`;
+                categoryElement.id = `category-${category.id}`;
+                
+                // Calcular total da categoria
+                let categoryTotal = 0;
+                category.items.forEach(item => {
+                    if (item.checked) {
+                        categoryTotal += calculateItemSubtotal(item.quantity, item.price);
+                    }
+                });
+                
+                categoryElement.innerHTML = `
+                    <div class="category-header" onclick="toggleCategory('${category.id}')">
+                        <div class="category-title">
+                            <span class="toggle-icon">${category.minimized ? '▶' : '▼'}</span>
+                            ${category.title}
+                        </div>
+                        <div class="category-total">R$ ${categoryTotal.toFixed(2)}</div>
+                    </div>
+                    <div class="items-list">
+                        ${category.items.map(item => {
+                            const subtotal = calculateItemSubtotal(item.quantity, item.price);
+                            return `
+                            <div class="item">
+                                <div class="item-info">
+                                    <input type="checkbox" 
+                                           class="item-checkbox" 
+                                           id="check-${item.id}"
+                                           ${item.checked ? 'checked' : ''}
+                                           onclick="event.stopPropagation(); toggleItem('${category.id}', '${item.id}')">
+                                    <div class="item-controls">
+                                        <div class="item-name">${item.name}</div>
+                                        <div class="item-price-controls">
+                                            <input type="number" 
+                                                   class="quantity-input" 
+                                                   id="qty-${item.id}"
+                                                   value="${item.quantity || 1}"
+                                                   placeholder="1"
+                                                   step="0.1"
+                                                   min="0.1"
+                                                   onclick="event.stopPropagation();"
+                                                   onchange="updateQuantity('${category.id}', '${item.id}', this.value)">
+                                            <span class="unit-price-label">${item.unit}</span>
+                                            <input type="number" 
+                                                   class="price-input" 
+                                                   id="price-${item.id}"
+                                                   value="${item.price || ''}"
+                                                   placeholder="0,00"
+                                                   step="0.01"
+                                                   min="0"
+                                                   onclick="event.stopPropagation();"
+                                                   onchange="updatePrice('${category.id}', '${item.id}', this.value)">
+                                            <span class="unit-price-label">preço/un.</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="item-value">R$ ${subtotal.toFixed(2)}</div>
+                                    ${item.price > 0 ? `<div class="item-subtotal">${item.quantity} ${item.unit} × R$ ${(parseFloat(item.price) || 0).toFixed(2)}</div>` : ''}
+                                    <button class="btn-remove" onclick="event.stopPropagation(); removeItem('${category.id}', '${item.id}')">×</button>
+                                </div>
+                            </div>
+                            `;
+                        }).join('')}
+                        
+                        <button class="btn-add-item" onclick="event.stopPropagation(); showAddItemForm('${category.id}')">
+                            ➕ Adicionar Item Personalizado
+                        </button>
+                    </div>
+                `;
+                
+                container.appendChild(categoryElement);
+            });
+            
+            calculateTotals();
+        }
+
+        // Alternar item (marcar/desmarcar)
+        function toggleItem(categoryId, itemId) {
+            const category = checklistData.categories.find(c => c.id === categoryId);
+            if (category) {
+                const item = category.items.find(i => i.id === itemId);
+                if (item) {
+                    item.checked = !item.checked;
+                    saveChecklist();
+                    renderChecklist();
+                }
+            }
+        }
+
+        // Atualizar quantidade do item
+        function updateQuantity(categoryId, itemId, value) {
+            const category = checklistData.categories.find(c => c.id === categoryId);
+            if (category) {
+                const item = category.items.find(i => i.id === itemId);
+                if (item) {
+                    item.quantity = parseFloat(value) || 1;
+                    saveChecklist();
+                    renderChecklist();
+                }
+            }
+        }
+
+        // Atualizar preço do item
+        function updatePrice(categoryId, itemId, value) {
+            const category = checklistData.categories.find(c => c.id === categoryId);
+            if (category) {
+                const item = category.items.find(i => i.id === itemId);
+                if (item) {
+                    item.price = parseFloat(value) || 0;
+                    saveChecklist();
+                    renderChecklist();
+                }
+            }
+        }
+
+        // Calcular totais
+        function calculateTotals() {
+            let grandTotal = 0;
+            
+            checklistData.categories.forEach(category => {
+                let categoryTotal = 0;
+                category.items.forEach(item => {
+                    if (item.checked) {
+                        categoryTotal += calculateItemSubtotal(item.quantity, item.price);
+                    }
+                });
+                grandTotal += categoryTotal;
+                
+                // Atualizar total da categoria
+                const categoryElement = document.querySelector(`#category-${category.id} .category-total`);
+                if (categoryElement) {
+                    categoryElement.textContent = `R$ ${categoryTotal.toFixed(2)}`;
+                }
+            });
+            
+            // Atualizar total geral
+            document.getElementById('totalValue').textContent = grandTotal.toFixed(2);
+            
+            // Feedback visual
+            const btn = event?.target?.closest('.btn');
+            if (btn && btn.classList.contains('btn-primary') && !btn.querySelector('span')?.textContent.includes('Salvo')) {
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<span>✅</span> Totais Calculados!';
+                btn.style.backgroundColor = '#27ae60';
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.style.backgroundColor = '';
+                }, 1500);
+            }
+        }
+
+        // Exportar para Excel
+        function exportToExcel() {
+            // Preparar dados para exportação
+            const exportData = [];
+            
+            checklistData.categories.forEach(category => {
+                exportData.push([`Categoria: ${category.title}`]);
+                exportData.push(['Item', 'Quantidade', 'Unidade', 'Preço Unitário (R$)', 'Subtotal (R$)', 'Comprado?']);
+                
+                category.items.forEach(item => {
+                    const subtotal = calculateItemSubtotal(item.quantity, item.price);
+                    exportData.push([
+                        item.name,
+                        item.quantity,
+                        item.unit,
+                        parseFloat(item.price) || 0,
+                        subtotal,
+                        item.checked ? 'Sim' : 'Não'
+                    ]);
+                });
+                
+                // Calcular total da categoria
+                const categoryTotal = category.items
+                    .filter(item => item.checked)
+                    .reduce((sum, item) => sum + calculateItemSubtotal(item.quantity, item.price), 0);
+                
+                exportData.push(['', '', '', '', 'Total:', `R$ ${categoryTotal.toFixed(2)}`]);
+                exportData.push([]); // Linha em branco
+            });
+            
+            // Adicionar total geral
+            const grandTotal = checklistData.categories.reduce((total, category) => {
+                return total + category.items
+                    .filter(item => item.checked)
+                    .reduce((sum, item) => sum + calculateItemSubtotal(item.quantity, item.price), 0);
+            }, 0);
+            
+            exportData.push(['TOTAL GERAL ESTIMADO:', '', '', '', '', `R$ ${grandTotal.toFixed(2)}`]);
+            
+            // Adicionar observações
+            const notes = document.getElementById('notes').value;
+            if (notes) {
+                exportData.push([]);
+                exportData.push(['OBSERVAÇÕES:']);
+                exportData.push([notes]);
+            }
+            
+            // Adicionar data/hora
+            exportData.push([]);
+            exportData.push(['Exportado em:', new Date().toLocaleString('pt-BR')]);
+            
+            // Criar planilha
+            const ws = XLSX.utils.aoa_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Checklist Compras");
+            
+            // Gerar nome do arquivo com data
+            const dateStr = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(wb, `checklist_compras_${dateStr}.xlsx`);
+        }
+
+        // Exportar para PDF
+        function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            
+            // Usar uma fonte padrão que evite problemas de codificação
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+            
+            let yPos = 20;
+            const pageWidth = doc.internal.pageSize.width;
+            const margin = 20;
+            const contentWidth = pageWidth - (margin * 2);
+            
+            // Título
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(18);
+            doc.setTextColor(44, 62, 80);
+            doc.text("Checklist de Compras Mensais", pageWidth / 2, yPos, { align: "center" });
+            yPos += 8;
+            
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(11);
+            doc.setTextColor(100, 100, 100);
+            doc.text("Para homem de 32 anos - Exportado em " + new Date().toLocaleDateString('pt-BR'), pageWidth / 2, yPos, { align: "center" });
+            yPos += 15;
+            
+            // Dados das categorias
+            checklistData.categories.forEach((category, index) => {
+                // Verificar se precisa de nova página
+                if (yPos > 250) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                
+                // Título da categoria (remover emojis para evitar problemas)
+                const cleanCategoryTitle = category.title.replace(/[^\w\s(),-]/g, '');
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(14);
+                doc.setTextColor(52, 152, 219);
+                doc.text(cleanCategoryTitle, margin, yPos);
+                yPos += 8;
+                
+                // Linha de cabeçalho da tabela
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(10);
+                doc.setTextColor(60, 60, 60);
+                
+                // Posições das colunas
+                const col1 = margin; // Item
+                const col2 = col1 + 70; // Qtd/Unit
+                const col3 = col2 + 30; // Preço Un.
+                const col4 = col3 + 25; // Subtotal
+                const col5 = col4 + 20; // Comprado
+                
+                doc.text("Item", col1, yPos);
+                doc.text("Qtd/Unit", col2, yPos);
+                doc.text("Preço Un.", col3, yPos);
+                doc.text("Subtotal", col4, yPos);
+                doc.text("✓", col5, yPos);
+                yPos += 4;
+                
+                // Linha divisória do cabeçalho
+                doc.setDrawColor(200, 200, 200);
+                doc.line(margin, yPos, pageWidth - margin, yPos);
+                yPos += 8;
+                
+                // Itens
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(10);
+                doc.setTextColor(50, 50, 50);
+                
+                let categoryTotal = 0;
+                
+                category.items.forEach(item => {
+                    // Verificar se precisa de nova página para o item
+                    if (yPos > 270) {
+                        doc.addPage();
+                        yPos = 20;
+                        // Recriar cabeçalho da categoria na nova página
+                        doc.setFont("helvetica", "bold");
+                        doc.setFontSize(14);
+                        doc.setTextColor(52, 152, 219);
+                        doc.text(cleanCategoryTitle + ' (continuação)', margin, yPos);
+                        yPos += 15;
+                        
+                        // Recriar cabeçalho da tabela
+                        doc.setFont("helvetica", "bold");
+                        doc.setFontSize(10);
+                        doc.setTextColor(60, 60, 60);
+                        doc.text("Item", col1, yPos);
+                        doc.text("Qtd/Unit", col2, yPos);
+                        doc.text("Preço Un.", col3, yPos);
+                        doc.text("Subtotal", col4, yPos);
+                        doc.text("✓", col5, yPos);
+                        yPos += 4;
+                        doc.setDrawColor(200, 200, 200);
+                        doc.line(margin, yPos, pageWidth - margin, yPos);
+                        yPos += 8;
+                        
+                        doc.setFont("helvetica", "normal");
+                        doc.setFontSize(10);
+                        doc.setTextColor(50, 50, 50);
+                    }
+                    
+                    const subtotal = calculateItemSubtotal(item.quantity, item.price);
+                    if (item.checked) categoryTotal += subtotal;
+                    
+                    // Nome do item (truncar se necessário)
+                    let itemName = item.name;
+                    if (itemName.length > 25) {
+                        itemName = itemName.substring(0, 25) + '...';
+                    }
+                    
+                    // Qtd/Unit
+                    const qtdUnit = `${item.quantity} ${item.unit}`;
+                    let qtdUnitText = qtdUnit;
+                    if (qtdUnit.length > 15) {
+                        qtdUnitText = qtdUnit.substring(0, 15) + '...';
+                    }
+                    
+                    doc.text(itemName, col1, yPos);
+                    doc.text(qtdUnitText, col2, yPos);
+                    doc.text(`R$ ${(parseFloat(item.price) || 0).toFixed(2)}`, col3, yPos);
+                    doc.text(`R$ ${subtotal.toFixed(2)}`, col4, yPos);
+                    doc.text(item.checked ? '✓' : '', col5, yPos);
+                    yPos += 6;
+                });
+                
+                // Total da categoria
+                yPos += 4;
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(11);
+                doc.setTextColor(39, 174, 96);
+                doc.text(`Total da categoria: R$ ${categoryTotal.toFixed(2)}`, margin, yPos);
+                yPos += 12;
+            });
+            
+            // Página de resumo
+            doc.addPage();
+            yPos = 20;
+            
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(16);
+            doc.setTextColor(44, 62, 80);
+            doc.text("Resumo Financeiro", pageWidth / 2, yPos, { align: "center" });
+            yPos += 20;
+            
+            // Calcular total geral
+            const grandTotal = checklistData.categories.reduce((total, category) => {
+                return total + category.items
+                    .filter(item => item.checked)
+                    .reduce((sum, item) => sum + calculateItemSubtotal(item.quantity, item.price), 0);
+            }, 0);
+            
+            doc.setFontSize(24);
+            doc.setTextColor(39, 174, 96);
+            doc.text(`TOTAL GERAL: R$ ${grandTotal.toFixed(2)}`, pageWidth / 2, yPos, { align: "center" });
+            yPos += 30;
+            
+            // Tabela de resumo por categoria
+            doc.setFontSize(12);
+            doc.setTextColor(60, 60, 60);
+            doc.text("Resumo por Categoria:", margin, yPos);
+            yPos += 10;
+            
+            doc.setFontSize(10);
+            doc.setDrawColor(200, 200, 200);
+            
+            checklistData.categories.forEach(category => {
+                if (yPos > 270) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                
+                const categoryTotal = category.items
+                    .filter(item => item.checked)
+                    .reduce((sum, item) => sum + calculateItemSubtotal(item.quantity, item.price), 0);
+                
+                const cleanCategoryTitle = category.title.replace(/[^\w\s(),-]/g, '');
+                const truncatedTitle = cleanCategoryTitle.length > 35 ? cleanCategoryTitle.substring(0, 35) + '...' : cleanCategoryTitle;
+                
+                doc.text(truncatedTitle, margin, yPos);
+                doc.text(`R$ ${categoryTotal.toFixed(2)}`, pageWidth - margin - 30, yPos, { align: "right" });
+                yPos += 6;
+                doc.line(margin, yPos, pageWidth - margin, yPos);
+                yPos += 8;
+            });
+            
+            // Observações
+            const notes = document.getElementById('notes').value;
+            if (notes.trim()) {
+                if (yPos > 220) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(12);
+                doc.setTextColor(60, 60, 60);
+                doc.text("Observações:", margin, yPos);
+                yPos += 8;
+                
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(10);
+                doc.setTextColor(50, 50, 50);
+                
+                const splitNotes = doc.splitTextToSize(notes, contentWidth);
+                doc.text(splitNotes, margin, yPos);
+            }
+            
+            // Rodapé com data
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(150, 150, 150);
+                doc.text(`Página ${i} de ${totalPages} - Gerado em ${new Date().toLocaleString('pt-BR')}`, pageWidth / 2, 287, { align: "center" });
+            }
+            
+            // Salvar PDF
+            doc.save(`checklist_compras_${new Date().toISOString().split('T')[0]}.pdf`);
+        }
+
+        // Limpar tudo
+        function clearAll() {
+            document.getElementById('clearModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('clearModal').style.display = 'none';
+        }
+
+        function confirmClear() {
+            // Restaurar dados originais
+            const originalData = {
+                categories: [
+                    {
+                        id: 'carnes',
+                        title: '🥩 Carnes (Mensal)',
+                        minimized: false,
+                        items: [
+                            { id: 'carne1', name: 'Peito de Frango', quantity: 2, unit: 'kg', price: 0, checked: false },
+                            { id: 'carne2', name: 'Coxa/Sobrecoxa de Frango', quantity: 1, unit: 'kg', price: 0, checked: false },
+                            { id: 'carne3', name: 'Carne para Cozinhar (músculo, acém)', quantity: 1.5, unit: 'kg', price: 0, checked: false },
+                            { id: 'carne4', name: 'Carne para Grelhar (patinho, fraldinha)', quantity: 1, unit: 'kg', price: 0, checked: false },
+                            { id: 'carne5', name: 'Carne Moída', quantity: 0.5, unit: 'kg', price: 0, checked: false },
+                            { id: 'carne6', name: 'Peixe (filé ou sardinha em lata)', quantity: 1, unit: 'kg ou 4 latas', price: 0, checked: false }
+                        ]
+                    },
+                    {
+                        id: 'sexta-basica',
+                        title: '🛒 Sexta Básica',
+                        minimized: false,
+                        items: [
+                            { id: 'sb1', name: 'Arroz', quantity: 5, unit: 'kg', price: 0, checked: false },
+                            { id: 'sb2', name: 'Feijão', quantity: 2, unit: 'kg', price: 0, checked: false },
+                            { id: 'sb3', name: 'Macarrão', quantity: 1, unit: 'kg', price: 0, checked: false },
+                            { id: 'sb4', name: 'Farinha de Trigo', quantity: 1, unit: 'kg', price: 0, checked: false },
+                            { id: 'sb5', name: 'Açúcar', quantity: 1, unit: 'kg', price: 0, checked: false },
+                            { id: 'sb6', name: 'Óleo de Soja/Girassol', quantity: 1, unit: '900ml', price: 0, checked: false },
+                            { id: 'sb7', name: 'Café em Pó', quantity: 1, unit: '500g', price: 0, checked: false },
+                            { id: 'sb8', name: 'Molho de Tomate', quantity: 2, unit: 'latas', price: 0, checked: false },
+                            { id: 'sb9', name: 'Milho/Ervilha em Lata', quantity: 2, unit: 'latas', price: 0, checked: false }
+                        ]
+                    },
+                    {
+                        id: 'higiene',
+                        title: '🧴 Higiene Pessoal',
+                        minimized: false,
+                        items: [
+                            { id: 'hig1', name: 'Sabonete', quantity: 5, unit: 'unidades', price: 0, checked: false },
+                            { id: 'hig2', name: 'Shampoo', quantity: 1, unit: 'frasco 350-500ml', price: 0, checked: false },
+                            { id: 'hig3', name: 'Condicionador', quantity: 1, unit: 'frasco', price: 0, checked: false },
+                            { id: 'hig4', name: 'Pasta de Dente', quantity: 2, unit: 'tubos', price: 0, checked: false },
+                            { id: 'hig5', name: 'Escova de Dentes', quantity: 1, unit: 'unidade', price: 0, checked: false },
+                            { id: 'hig6', name: 'Desodorante', quantity: 1, unit: 'unidade', price: 0, checked: false },
+                            { id: 'hig7', name: 'Papel Higiênico', quantity: 4, unit: 'rolos', price: 0, checked: false },
+                            { id: 'hig8', name: 'Lâminas de Barbear', quantity: 1, unit: 'pacote', price: 0, checked: false }
+                        ]
+                    },
+                    {
+                        id: 'limpeza',
+                        title: '🧽 Limpeza Doméstica',
+                        minimized: false,
+                        items: [
+                            { id: 'limp1', name: 'Detergente Líquido (roupas)', quantity: 1, unit: 'frasco 1,5L ou 2kg', price: 0, checked: false },
+                            { id: 'limp2', name: 'Amaciante', quantity: 1, unit: 'frasco 1L', price: 0, checked: false },
+                            { id: 'limp3', name: 'Detergente (louça)', quantity: 1, unit: 'frasco 500ml', price: 0, checked: false },
+                            { id: 'limp4', name: 'Água Sanitária', quantity: 1, unit: '1-2L', price: 0, checked: false },
+                            { id: 'limp5', name: 'Desinfetante', quantity: 1, unit: '500ml', price: 0, checked: false },
+                            { id: 'limp6', name: 'Multiuso (limpa-vidros)', quantity: 1, unit: '500ml', price: 0, checked: false },
+                            { id: 'limp7', name: 'Sacos de Lixo', quantity: 2, unit: 'rolos', price: 0, checked: false },
+                            { id: 'limp8', name: 'Esponjas (aço e pia)', quantity: 1, unit: 'pacote', price: 0, checked: false }
+                        ]
+                    },
+                    {
+                        id: 'flv',
+                        title: '🥦 FLV (Frutas, Legumes, Verduras)',
+                        minimized: false,
+                        items: [
+                            { id: 'flv1', name: 'Alho e Cebola', quantity: 1, unit: 'kg', price: 0, checked: false },
+                            { id: 'flv2', name: 'Tomate', quantity: 1.5, unit: 'kg', price: 0, checked: false },
+                            { id: 'flv3', name: 'Batata/Cenoura', quantity: 1.5, unit: 'kg', price: 0, checked: false },
+                            { id: 'flv4', name: 'Folhas (alface, rúcula)', quantity: 1, unit: 'por semana', price: 0, checked: false },
+                            { id: 'flv5', name: 'Frutas (banana, maçã, laranja)', quantity: 1, unit: 'variedade semanal', price: 0, checked: false },
+                            { id: 'flv6', name: 'Pimentão/Abobrinha', quantity: 1, unit: 'para refogar', price: 0, checked: false }
+                        ]
+                    },
+                    {
+                        id: 'laticinios',
+                        title: '🥛 Laticínios e Outros',
+                        minimized: false,
+                        items: [
+                            { id: 'lat1', name: 'Leite UHT', quantity: 7, unit: 'caixas', price: 0, checked: false },
+                            { id: 'lat2', name: 'Ovos', quantity: 30, unit: 'unidades', price: 0, checked: false },
+                            { id: 'lat3', name: 'Queijo', quantity: 0.5, unit: 'kg', price: 0, checked: false },
+                            { id: 'lat4', name: 'Manteiga/Margarina', quantity: 0.25, unit: 'kg', price: 0, checked: false },
+                            { id: 'lat5', name: 'Pão (comprar semanal)', quantity: 1, unit: 'semanal', price: 0, checked: false },
+                            { id: 'lat6', name: 'Temperos (sal, pimenta, etc)', quantity: 1, unit: 'reposição', price: 0, checked: false }
+                        ]
+                    }
+                ]
+            };
+            
+            checklistData.categories = originalData.categories;
+            
+            document.getElementById('notes').value = '';
+            
+            // Limpar localStorage
+            localStorage.removeItem('shoppingChecklist');
+            localStorage.removeItem('shoppingChecklistNotes');
+            
+            // Fechar modal e re-renderizar
+            closeModal();
+            renderChecklist();
+            
+            alert('Checklist limpo com sucesso!');
+        }
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSavedData();
+            renderChecklist();
+            
+            // Adicionar evento de input para formatação automática de preços
+            document.addEventListener('input', function(e) {
+                if (e.target.classList.contains('price-input')) {
+                    // Formatar enquanto digita
+                    const value = e.target.value;
+                    if (value && !isNaN(value) && parseFloat(value) >= 0) {
+                        const formatted = parseFloat(value).toFixed(2);
+                        if (value !== formatted) {
+                            e.target.value = formatted;
+                        }
+                    }
+                }
+                
+                if (e.target.classList.contains('quantity-input')) {
+                    // Garantir que quantidade seja válida
+                    const value = e.target.value;
+                    if (value && (isNaN(value) || parseFloat(value) < 0.1)) {
+                        e.target.value = 1;
+                    }
+                }
+            });
+            
+            // Calcular totais automaticamente quando preços ou quantidades mudam
+            document.addEventListener('change', function(e) {
+                if (e.target.classList.contains('price-input') || 
+                    e.target.classList.contains('quantity-input') || 
+                    e.target.classList.contains('item-checkbox')) {
+                    setTimeout(calculateTotals, 100);
+                }
+            });
+            
+            // Salvar notas automaticamente
+            document.getElementById('notes').addEventListener('input', function() {
+                localStorage.setItem('shoppingChecklistNotes', this.value);
+            });
+        });
+    </script>
+</body>
+</html>
